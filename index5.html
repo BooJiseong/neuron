@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>도약 전도 vs 연속 전도</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --bg: #f9fafb;
+      --text: #1e293b;
+      --subtle: #94a3b8;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background-color: white;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      color: var(--primary);
+    }
+
+    main {
+      padding: 2rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    section {
+      margin-bottom: 4rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p, li {
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
+    .domino-container {
+      display: flex;
+      justify-content: center; /* 중앙 정렬 */
+      align-items: flex-end;
+      gap: 2px; /* 작은 간격으로 조밀하게 */
+      margin: 2rem 0;
+      background: linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%);
+      padding: 2rem;
+      border-radius: 12px;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+      overflow-x: auto;
+      width: 800px; /* 고정 너비로 길이 통일 */
+      height: 120px; /* 고정 높이 */
+    }
+
+    .domino {
+      width: 18px;
+      height: 50px;
+      background: linear-gradient(145deg, #475569, #334155);
+      transform-origin: bottom left;
+      transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      border-radius: 2px;
+      position: relative;
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+
+    .domino::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+    }
+
+    .domino::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+    }
+
+    /* 단계별 기울기 - 넘어지는 과정에서 사용 */
+    .domino.stage1 { transform: rotate(15deg); }
+    .domino.stage2 { transform: rotate(30deg); }
+    .domino.stage3 { transform: rotate(45deg); }
+    .domino.stage4 { transform: rotate(60deg); }
+    .domino.stage5 { transform: rotate(75deg); }
+    .domino.upright { transform: rotate(0deg); }
+
+    .domino.fallen {
+      transform: rotate(85deg);
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+      animation: domino-fall 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    }
+
+    .domino.active {
+      background: linear-gradient(145deg, #ef4444, #dc2626);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+      animation: pulse-glow 0.3s ease-in-out;
+    }
+
+    .domino.node {
+      background: linear-gradient(145deg, #60a5fa, #3b82f6);
+      border: 2px solid #1e40af;
+      width: 14px; /* border 포함해서 연속전도와 동일한 두께 (14px + 4px border = 18px) */
+      height: 50px; /* 연속전도와 동일한 높이 */
+    }
+
+    .domino.node::before,
+    .domino.node::after {
+      background: #fbbf24;
+    }
+
+    .domino.inactive {
+      background: linear-gradient(145deg, #d1d5db, #9ca3af);
+      opacity: 0.4;
+    }
+
+    .bridge {
+      width: 80px; /* 너비를 줄여서 조밀하게 */
+      height: 8px;
+      background: linear-gradient(145deg, #fbbf24, #f59e0b);
+      border-radius: 4px;
+      align-self: flex-end;
+      position: relative;
+      top: -25px; /* 도미노 중앙 높이에 맞춤 */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      margin: 0 4px; /* 마진도 줄임 */
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .bridge::before {
+      content: '말이집';
+      position: absolute;
+      top: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #f59e0b;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .bridge::after {
+      content: "";
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      width: 2px;
+      height: 15px;
+      background: #f59e0b;
+      transform: translateX(-50%);
+    }
+
+    .bridge-signal {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      top: 0;
+      left: -8px;
+      opacity: 0;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    }
+
+    .bridge-signal.active {
+      opacity: 1;
+      animation: bridge-signal-move 0.3s ease-in-out forwards;
+    }
+
+    @keyframes bridge-signal-move {
+      0% { 
+        left: -8px;
+        transform: scale(0.5);
+      }
+      50% {
+        transform: scale(1.2);
+      }
+      100% { 
+        left: 80px; /* 새로운 말이집 너비에 맞춤 */
+        transform: scale(0.8);
+      }
+    }
+
+    .nerve-label {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .speed-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 4px 8px;
+      background: rgba(37, 99, 235, 0.1);
+      border-radius: 12px;
+      font-size: 0.8rem;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .wave-effect {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #ef4444, transparent);
+      border-radius: 2px;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .wave-effect.active {
+      opacity: 1;
+      animation: wave-propagate 0.5s ease-out;
+    }
+
+    @keyframes wave-propagate {
+      0% { width: 0; }
+      100% { width: 100%; }
+    }
+
+    @keyframes pulse-glow {
+      0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+      50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.4); }
+      100% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+    }
+
+    @keyframes domino-fall {
+      0% { transform: rotate(0deg); }
+      20% { transform: rotate(15deg); }
+      100% { transform: rotate(85deg); }
+    }
+
+    .domino.active {
+      animation: pulse-glow 0.3s ease-in-out;
+    }
+
+    .simulation-status {
+      text-align: center;
+      margin: 1rem 0;
+      font-weight: bold;
+      color: var(--primary);
+      min-height: 24px;
+    }
+
+    .comparison-stats {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      margin: 2rem 0;
+    }
+
+    .comparison-stats h4 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 1rem;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      display: block;
+    }
+
+    .simulation-controls {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .axon-container {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .axon {
+      position: relative;
+      width: 100%;
+      height: 24px;
+      background: #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .axon.m {
+      background: repeating-linear-gradient(to right, #60a5fa 0 10%, #93c5fd 10% 20%);
+    }
+
+    .signal {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: red;
+      border-radius: 50%;
+      top: 2px;
+      left: 0;
+    }
+
+    .btn {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background: #1e40af;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--subtle);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>도약 전도 vs 연속 전도 비교 시뮬레이터</h1>
+  </header>
+  <main>
+    <section>
+      <h2>1. 도미노 비교 시뮬레이션</h2>
+      <p>아래는 <strong>조밀한 간격</strong>으로 배치된 도미노들이 연속적으로 전달되는 모습과 중앙 정렬된 도약 전도를 시뮬레이션한 것입니다.</p>
+      
+      <div style="background: #f1f5f9; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; border-left: 4px solid var(--primary);">
+        <h4 style="margin-top: 0; color: var(--primary);">💡 시뮬레이션 해석 가이드</h4>
+        <ul style="margin-bottom: 0;">
+          <li><strong>회색 도미노:</strong> 일반 신경 세포막 (조밀한 간격)</li>
+          <li><strong>파란색 도미노:</strong> 랑비에 결절 (연속전도와 동일한 두께)</li>
+          <li><strong>노란색 말이집:</strong> 절연체 역할 + 빠른 신호 전달</li>
+          <li><strong>빨간 신호구:</strong> 말이집을 통한 빠른 신호 이동</li>
+          <li><strong>빨간 빛:</strong> 활동전위 발생</li>
+          <li><strong>🎯 도약전도가 중앙에 정렬되어 비교하기 쉬움!</strong></li>
+        </ul>
+      </div>
+      
+      <div style="margin-bottom: 3rem;">
+        <h3>🧠 민말이집 신경 (연속 전도)</h3>
+        <p style="font-size: 0.9rem; color: var(--subtle); margin-bottom: 1rem;">
+          <strong>특징:</strong> 모든 지점에서 순차적으로 활동전위가 발생하여 조밀한 간격으로 천천히 전달됩니다. <br>
+          <strong>속도:</strong> ~1m/s | <strong>에너지 소모:</strong> 높음 | <strong>신경:</strong> 감각신경, 자율신경
+        </p>
+        <div class="domino-container" id="domino-continuous">
+          <div class="nerve-label">조밀한 연속적 신호 전달</div>
+          <div class="speed-indicator">느림 🐌</div>
+          <div class="wave-effect" id="wave-continuous"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 3rem;">
+        <h3>⚡ 말이집 신경 (도약 전도)</h3>
+        <p style="font-size: 0.9rem; color: var(--subtle); margin-bottom: 1rem;">
+          <strong>특징:</strong> 랑비에 결절에서 순차적으로 도미노(연속전도와 동일 두께)가 넘어지고, 말이집이 신호를 빠르게 전달해서 다음 결절을 활성화합니다. <br>
+          <strong>속도:</strong> ~100m/s | <strong>에너지 소모:</strong> 낮음 | <strong>신경:</strong> 운동신경, 체성감각신경
+        </p>
+        <div class="domino-container" id="domino-saltatory">
+          <div class="nerve-label">중앙 정렬된 도약적 연쇄반응</div>
+          <div class="speed-indicator">빠름 🚀</div>
+          <div class="wave-effect" id="wave-saltatory"></div>
+        </div>
+      </div>
+
+      <div class="simulation-controls">
+        <button class="btn" onclick="showStaticPattern()">📚 정적 패턴 보기</button>
+        <button class="btn" onclick="startDominoSimulation()">🎬 애니메이션 시작</button>
+        <button class="btn-secondary btn" onclick="resetDominoes()">🔄 초기화</button>
+        <button class="btn-secondary btn" onclick="slowMotion()">🐌 슬로우 모션</button>
+      </div>
+
+      <div class="simulation-status" id="simulation-status"></div>
+
+      <div class="comparison-stats">
+        <h4>📊 전도 속도 비교</h4>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-number">1m/s</span>
+            <div>연속 전도</div>
+            <small>민말이집 신경</small>
+          </div>
+          <div class="stat-box">
+            <span class="stat-number">100m/s</span>
+            <div>도약 전도</div>
+            <small>말이집 신경</small>
+          </div>
+        </div>
+        <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem; opacity: 0.9;">
+          💡 말이집 신경이 <strong>100배 더 빠르게</strong> 신호를 전달합니다!
+        </p>
+      </div>
+
+      <div style="background: #ecfdf5; padding: 1.5rem; border-radius: 12px; margin-top: 2rem; border-left: 4px solid #10b981;">
+        <h4 style="margin-top: 0; color: #10b981;">🔬 실제 생물학적 의미</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div>
+            <h5 style="color: #059669; margin-bottom: 0.5rem;">연속 전도</h5>
+            <ul style="font-size: 0.9rem; margin: 0;">
+              <li>나트륨 채널이 축삭 전체에 분포</li>
+              <li>매 지점에서 탈분극 발생</li>
+              <li>느리지만 확실한 신호 전달</li>
+              <li>예: 내장 신경, C섬유</li>
+            </ul>
+          </div>
+          <div>
+            <h5 style="color: #059669; margin-bottom: 0.5rem;">도약 전도</h5>
+            <ul style="font-size: 0.9rem; margin: 0;">
+              <li>나트륨 채널이 결절에만 집중</li>
+              <li>말이집 구간은 절연체 역할</li>
+              <li>빠르고 효율적인 신호 전달</li>
+              <li>예: 운동신경, Aα섬유</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 신경 축삭 전도 시뮬레이션</h2>
+      <p>버튼을 눌러 두 신경의 흥분 전도 속도를 비교해보세요.</p>
+      <div class="axon-container">
+        <div>
+          <p><strong>말이집 신경 (도약 전도)</strong></p>
+          <div class="axon m" id="myelinated">
+            <div class="signal" id="signalM"></div>
+          </div>
+        </div>
+        <div>
+          <p><strong>민말이집 신경 (연속 전도)</strong></p>
+          <div class="axon" id="unmyelinated">
+            <div class="signal" id="signalU"></div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <button class="btn" onclick="startAxonSimulation()">전도 시작</button>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2025 신경과학 교육 프로그램 by Jiseong Edu
+  </footer>
+
+  <script>
+    let isAnimating = false;
+    let animationSpeed = 1;
+
+    function createDominoes() {
+      const cont = document.getElementById('domino-continuous');
+      const salt = document.getElementById('domino-saltatory');
+      
+      // 기존 요소들 유지하면서 도미노만 초기화
+      cont.innerHTML = cont.querySelector('.nerve-label').outerHTML + 
+                      cont.querySelector('.speed-indicator').outerHTML + 
+                      cont.querySelector('.wave-effect').outerHTML;
+      salt.innerHTML = salt.querySelector('.nerve-label').outerHTML + 
+                      salt.querySelector('.speed-indicator').outerHTML + 
+                      salt.querySelector('.wave-effect').outerHTML;
+
+      // 연속 전도: 더 많은 도미노로 조밀하게 (간격이 줄어든 만큼 개수 늘림)
+      for (let i = 0; i < 28; i++) {
+        const d = document.createElement('div');
+        d.className = 'domino upright';
+        cont.appendChild(d);
+      }
+
+      // 도약 전도: 16개 도미노 사용 (4그룹 × 4개)
+      // 4그룹 × 4개 + 3개 말이집 = 총 19개 요소
+      for (let group = 0; group < 4; group++) {
+        // 랑비에 결절 (활성 도미노 4개)
+        for (let i = 0; i < 4; i++) {
+          const d = document.createElement('div');
+          d.className = 'domino upright node';
+          d.dataset.group = group;
+          d.dataset.index = i;
+          salt.appendChild(d);
+        }
+        
+        // 말이집 구간 (마지막 그룹 제외)
+        if (group < 3) {
+          const bridge = document.createElement('div');
+          bridge.className = 'bridge';
+          bridge.dataset.bridge = group;
+          
+          // 말이집 신호 요소 추가
+          const signal = document.createElement('div');
+          signal.className = 'bridge-signal';
+          bridge.appendChild(signal);
+          
+          salt.appendChild(bridge);
+        }
+      }
+    }
+
+    function animateDominoes(dominoes, delay) {
+      Array.from(dominoes).forEach((domino, i) => {
+        setTimeout(() => {
+          domino.classList.add('active');
+          setTimeout(() => {
+            domino.classList.remove('active');
+            domino.classList.add('fallen');
+          }, 100);
+        }, delay * i);
+      });
+    }
+
+    function animateSaltatoryConduction() {
+      const nodeGroups = [];
+      const bridges = [];
+      
+      // 그룹별로 도미노와 말이집 정리 (4그룹)
+      for (let i = 0; i < 4; i++) {
+        const groupDominoes = document.querySelectorAll(`#domino-saltatory .domino.node[data-group="${i}"]`);
+        nodeGroups.push(Array.from(groupDominoes));
+        
+        if (i < 3) {
+          const bridge = document.querySelector(`#domino-saltatory .bridge[data-bridge="${i}"]`);
+          bridges.push(bridge);
+        }
+      }
+      
+      let currentTime = 0;
+      
+      // 각 그룹을 순차적으로 처리
+      nodeGroups.forEach((group, groupIndex) => {
+        // 각 그룹의 도미노들을 순차적으로 넘어뜨림 (4개씩)
+        group.forEach((domino, dominoIndex) => {
+          setTimeout(() => {
+            domino.classList.add('active');
+            setTimeout(() => {
+              domino.classList.remove('active');
+              domino.classList.add('fallen');
+              
+              // 그룹의 마지막 도미노가 넘어지고, 다음 말이집이 있으면 신호 전달
+              if (dominoIndex === group.length - 1 && groupIndex < bridges.length) {
+                setTimeout(() => {
+                  const bridge = bridges[groupIndex];
+                  const signal = bridge.querySelector('.bridge-signal');
+                  signal.classList.add('active');
+                  
+                  // 신호 전달 완료 후 리셋
+                  setTimeout(() => {
+                    signal.classList.remove('active');
+                  }, 300 / animationSpeed);
+                }, 100 / animationSpeed);
+              }
+            }, 100 / animationSpeed);
+          }, (currentTime + (dominoIndex * 60)) / animationSpeed);
+        });
+        
+        // 다음 그룹 시작 시간 계산 (그룹들이 일부 겹치도록)
+        currentTime += (group.length * 60) + 150; // 빠른 연쇄반응
+      });
+    }
+
+    function startDominoSimulation() {
+      if (isAnimating) return;
+      isAnimating = true;
+      
+      const statusEl = document.getElementById('simulation-status');
+      statusEl.textContent = '🎬 시뮬레이션 진행 중...';
+      
+      createDominoes();
+      
+      setTimeout(() => {
+        statusEl.textContent = '⚡ 신경 신호 전달 중...';
+        
+        // 연속 전도: 모든 도미노 순차적으로 (조밀한 간격)
+        const continuousDominoes = document.querySelectorAll('#domino-continuous .domino');
+        animateDominoes(continuousDominoes, 60 / animationSpeed);
+        
+        // 도약 전도: 새로운 연쇄반응 방식 (더 빠르게)
+        animateSaltatoryConduction();
+        
+        setTimeout(() => {
+          isAnimating = false;
+          statusEl.textContent = '✅ 시뮬레이션 완료! 조밀한 배치에서 도약 전도가 더 빠른 것을 확인해보세요!';
+        }, 3500 / animationSpeed);
+      }, 500);
+    }
+
+    function showStaticPattern() {
+      createDominoes();
+      
+      const statusEl = document.getElementById('simulation-status');
+      statusEl.textContent = '📚 모든 도미노가 조밀하게 배치되어 똑바로 서 있습니다. 애니메이션으로 연쇄반응을 확인해보세요!';
+    }
+
+    function resetDominoes() {
+      const containers = [document.getElementById('domino-continuous'), 
+                         document.getElementById('domino-saltatory')];
+      
+      // 기존 도미노들과 말이집 제거
+      containers.forEach(container => {
+        const dominoes = container.querySelectorAll('.domino');
+        dominoes.forEach(d => d.remove());
+        
+        const bridges = container.querySelectorAll('.bridge');
+        bridges.forEach(b => b.remove());
+        
+        // 말이집 신호들도 리셋
+        const signals = container.querySelectorAll('.bridge-signal');
+        signals.forEach(s => s.classList.remove('active'));
+        
+        const wave = container.querySelector('.wave-effect');
+        if (wave) wave.classList.remove('active');
+      });
+      
+      // 정적 패턴으로 다시 생성
+      createDominoes();
+      
+      animationSpeed = 1;
+      const button = document.querySelector('button[onclick="slowMotion()"]');
+      if (button) button.textContent = '🐌 슬로우 모션';
+      
+      const statusEl = document.getElementById('simulation-status');
+      if (statusEl) statusEl.textContent = '';
+    }
+
+    function slowMotion() {
+      const button = document.querySelector('button[onclick="slowMotion()"]');
+      if (animationSpeed === 1) {
+        animationSpeed = 0.3;
+        button.textContent = '⚡ 정상 속도';
+      } else {
+        animationSpeed = 1;
+        button.textContent = '🐌 슬로우 모션';
+      }
+    }
+
+    function animateSignal(signal, duration) {
+      let start = null;
+      const distance = document.querySelector(".axon").offsetWidth - 20;
+
+      function step(timestamp) {
+        if (!start) start = timestamp;
+        const progress = timestamp - start;
+        const percent = Math.min(progress / duration, 1);
+        signal.style.left = percent * distance + 'px';
+
+        if (percent < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    function startAxonSimulation() {
+      const signalM = document.getElementById('signalM');
+      const signalU = document.getElementById('signalU');
+      signalM.style.left = '0px';
+      signalU.style.left = '0px';
+      
+      // 실제 속도 비율에 맞게: 말이집 신경(100m/s) vs 민말이집 신경(1m/s) = 100배 차이
+      animateSignal(signalM, 500);    // 말이집 신경: 0.5초 (빠름)
+      animateSignal(signalU, 50000);  // 민말이집 신경: 50초 (100배 느림)
+    }
+
+    // 페이지 로드 시 정적 패턴 표시
+    document.addEventListener('DOMContentLoaded', function() {
+      showStaticPattern();
+    });
+  </script>
+</body>
+</html>
